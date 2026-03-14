@@ -1,0 +1,8 @@
+wc-monaco-editor {
+  display: block;
+  min-height: 320px;
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+}

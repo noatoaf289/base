@@ -1,0 +1,13 @@
+.pyodide-console {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+}
+
+.pyodide-status {
+  color: #334155;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}

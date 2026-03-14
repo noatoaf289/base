@@ -1,0 +1,16 @@
+.sqlite3-result-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+.sqlite3-result-table th,
+.sqlite3-result-table td {
+  border: 1px solid #d1d5db;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.sqlite3-result-table th {
+  background: #f3f4f6;
+}
