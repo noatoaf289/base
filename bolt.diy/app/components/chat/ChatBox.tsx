@@ -288,13 +288,13 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
             </IconButton>
 
             <IconButton
-              title={props.dataContextLoaded ? `Data: ${props.dataContextName}` : 'Load Data'}
+              title={props.dataContextLoaded ? `Data: ${props.dataContextName}` : 'Configure Data'}
               className={classNames('transition-all flex items-center gap-1 px-1.5', {
-                '!bg-green-100 !text-green-700 dark:!bg-green-900/30 dark:!text-green-300': props.dataContextLoaded,
+                '!bg-blue-100 !text-blue-700 dark:!bg-blue-900/30 dark:!text-blue-300': props.dataContextLoaded,
               })}
               onClick={() => props.onLoadData?.()}
             >
-              <div className="i-ph:database text-xl" />
+              <div className="i-ph:cube text-xl" />
               {props.dataContextLoaded && <span className="text-xs">{props.dataContextName}</span>}
             </IconButton>
             <SpeechRecognitionButton

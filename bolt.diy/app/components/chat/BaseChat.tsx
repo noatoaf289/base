@@ -14,11 +14,7 @@ import { getApiKeysFromCookies } from './APIKeyManager';
 import Cookies from 'js-cookie';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import styles from './BaseChat.module.scss';
-import { ImportButtons } from '~/components/chat/chatExportAndImport/ImportButtons';
-import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
-import GitCloneButton from './GitCloneButton';
 import type { ProviderInfo } from '~/types/model';
-import StarterTemplates from './StarterTemplates';
 import type { ActionAlert, SupabaseAlert, DeployAlert, LlmErrorAlertType } from '~/types/actions';
 import DeployChatAlert from '~/components/deploy/DeployAlert';
 import ChatAlert from './ChatAlert';
@@ -33,7 +29,7 @@ import { ChatBox } from './ChatBox';
 import type { DesignScheme } from '~/types/design-scheme';
 import type { ElementInfo } from '~/components/workbench/Inspector';
 import LlmErrorAlert from './LLMApiAlert';
-import { DataContextPanel } from '~/components/data/DataContextPanel';
+import { DataBoard } from '~/components/data/DataBoard';
 import { dataContextStore } from '~/lib/stores/dataContext';
 
 const TEXTAREA_MIN_HEIGHT = 76;
@@ -148,7 +144,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [progressAnnotations, setProgressAnnotations] = useState<ProgressAnnotation[]>([]);
     const expoUrl = useStore(expoUrlAtom);
     const [qrModalOpen, setQrModalOpen] = useState(false);
-    const [dataContextOpen, setDataContextOpen] = useState(false);
     const dataContext = useStore(dataContextStore);
 
     useEffect(() => {
@@ -355,12 +350,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         <div className="flex flex-col lg:flex-row overflow-y-auto w-full h-full">
           <div className={classNames(styles.Chat, 'flex flex-col flex-grow lg:min-w-[var(--chat-min-width)] h-full')}>
             {!chatStarted && (
-              <div id="intro" className="mt-[16vh] max-w-2xl mx-auto text-center px-4 lg:px-0">
-                <h1 className="text-3xl lg:text-6xl font-bold text-bolt-elements-textPrimary mb-4 animate-fade-in">
-                  Where ideas begin
+              <div id="intro" className="mt-[10vh] max-w-2xl mx-auto text-center px-4 lg:px-0">
+                <h1 className="text-3xl lg:text-5xl font-bold text-blue-600 dark:text-blue-400 mb-3 animate-fade-in">
+                  Noa App Builder
                 </h1>
-                <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
-                  Bring ideas to life in seconds or get help on existing projects.
+                <p className="text-md lg:text-lg mb-6 text-gray-500 dark:text-gray-400 animate-fade-in animation-delay-200">
+                  Load your data packages, describe what you need, and let AI build it.
                 </p>
               </div>
             )}
@@ -474,41 +469,26 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   onWebSearchResult={onWebSearchResult}
                   dataContextLoaded={!!dataContext}
                   dataContextName={dataContext?.packageName}
-                  onLoadData={() => setDataContextOpen(true)}
                 />
               </div>
             </StickToBottom>
             <div className="flex flex-col justify-center">
               {!chatStarted && (
-                <div className="flex justify-center gap-2">
-                  {ImportButtons(importChat)}
-                  <GitCloneButton importChat={importChat} />
-                  <button
-                    onClick={() => setDataContextOpen(true)}
-                    className={classNames(
-                      'flex gap-2 items-center rounded-md px-3 py-1.5 text-sm transition-colors border',
-                      dataContext
-                        ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30'
-                        : 'border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3',
-                    )}
-                  >
-                    <div className="i-ph:database" />
-                    {dataContext ? `Data: ${dataContext.packageName}` : 'Load Data'}
-                  </button>
-                </div>
+                <DataBoard
+                  onStartBuild={(description: string) => {
+                    handleSendMessage({} as React.UIEvent, description);
+                  }}
+                  model={model}
+                  setModel={setModel}
+                  provider={provider}
+                  setProvider={setProvider}
+                  providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
+                  modelList={modelList}
+                  apiKeys={apiKeys}
+                  onApiKeysChange={onApiKeysChange}
+                  isModelLoading={isModelLoading}
+                />
               )}
-              <div className="flex flex-col gap-5">
-                {!chatStarted &&
-                  ExamplePrompts((event, messageInput) => {
-                    if (isStreaming) {
-                      handleStop?.();
-                      return;
-                    }
-
-                    handleSendMessage?.(event, messageInput);
-                  })}
-                {!chatStarted && <StarterTemplates />}
-              </div>
             </div>
           </div>
           <ClientOnly>
@@ -517,7 +497,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             )}
           </ClientOnly>
         </div>
-        <DataContextPanel isOpen={dataContextOpen} onClose={() => setDataContextOpen(false)} />
       </div>
     );
 
