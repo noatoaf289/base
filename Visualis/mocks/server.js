@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { errorBody } from './errorBody.js';
-import { stubPackageResults, stubLibs, putRun, getRun } from './stubData.js';
+import { stubPackageResults, stubIntelligenceResults, stubLibs, putRun, getRun } from './stubData.js';
 
 const app = express();
 app.use(cors());
@@ -23,6 +23,7 @@ app.use('/libs', express.static(libsRoot));
 const stubSearchResultsRaw = [
   { Id: 1, Logo: '', Name: 'Sample Sales Package', Type: 'Package' },
   { Id: 2, Logo: '', Name: 'User Analytics Package', Type: 'Package' },
+  { Id: 3, Logo: '', Name: 'Intelligence Briefing', Type: 'Package' },
   { Id: 99, Logo: '', Name: 'Internal Template', Type: 'Template' },
 ];
 const PACKAGE_TYPE = 'Package';
@@ -193,12 +194,20 @@ app.get('/api/flapi/packages/search', (req, res) => {
   res.status(status).json(body);
 });
 
+function getRunResults(packageId) {
+  const id = String(packageId).trim();
+  if (id === '3') {
+    return { results: { ...stubIntelligenceResults } };
+  }
+  return { results: { ...stubPackageResults } };
+}
+
 app.post('/package/:packageId', (req, res) => {
   const { packageId } = req.params;
   if (!packageId?.trim()) {
     return res.status(400).json(errorBody('invalid_package_id', 'packageId is required'));
   }
-  res.status(200).json({ results: { ...stubPackageResults } });
+  res.status(200).json(getRunResults(packageId));
 });
 
 app.post('/api/flapi/packages/:packageId/run', (req, res) => {
@@ -208,7 +217,7 @@ app.post('/api/flapi/packages/:packageId/run', (req, res) => {
       .status(400)
       .json(errorBody('invalid_package_id', 'packageId is required'));
   }
-  res.status(200).json({ results: { ...stubPackageResults } });
+  res.status(200).json(getRunResults(packageId));
 });
 
 // ——— Config & Models (for client) ———

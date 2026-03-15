@@ -1,6 +1,7 @@
 """Prompt building and response parsing for the agent."""
 from __future__ import annotations
 
+import json
 import re
 from typing import TypedDict
 
@@ -67,13 +68,22 @@ def build_user_message(
     action_items: list[str],
 ) -> str:
     """Build the user-facing message for the LLM."""
+    # Include actual data so the LLM can populate tables/charts (embed as window.data and render from it).
+    data_json = json.dumps(main_cube_data_sample, ensure_ascii=False, indent=0)
+    keys_hint = list(main_cube_data_sample[0].keys()) if main_cube_data_sample else []
     lines = [
         "## Field explanations (from user)",
         *[f"- {e['fieldName']}: {e['explanation']}" for e in field_explanations],
         "",
         "## Main cube",
         f"Name: {main_cube_name}",
-        f"Sample row keys: {list(main_cube_data_sample[0].keys()) if main_cube_data_sample else []}",
+        f"Row keys: {keys_hint}",
+        "",
+        "## Data (embed this in the page and render from it)",
+        "The following JSON is the data to show. You MUST embed it in the page (e.g. in a <script> tag as window.data = [...]) and render all tables, charts, and lists from this data so the UI is not empty.",
+        "```json",
+        data_json,
+        "```",
         "",
         "## User prompt",
         user_prompt,
@@ -82,7 +92,7 @@ def build_user_message(
         *[f"- {a}" for a in action_items],
         "",
         "Output a single HTML document (one page with embedded <style> and <script>). "
-        "Data will be injected as window.data (array of objects); wait for window.data before rendering. "
+        "Set window.data to the JSON above so the page shows real data on load. Populate every table/chart/section from window.data. "
         "For each library you use, insert a placeholder in <head>: <Library:TagName /> (e.g. <Library:Leaflet />, <Library:ChartJs />, <Library:Lodash />). "
         "Do not include real script/link tags for libs—only these placeholders. "
         "At the very end of your response, add a single line: LIBRARIES_USED: id1, id2 (lib ids, e.g. leaflet, chart-js, lodash).",

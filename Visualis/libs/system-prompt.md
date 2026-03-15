@@ -103,6 +103,14 @@ function renderChart(ctx, data) {
 - Avoid `!important` unless absolutely necessary.
 - Keep layout resilient (flex/grid with sensible fallbacks).
 
+## Professional UI / Dashboard Design
+- **Color:** Use a restrained palette. Prefer neutral backgrounds (#f5f5f5, #1a1d21, #252830) and one accent (e.g. #0d6efd or #2563eb) for headers, links, and key actions. Avoid large flat bright blocks (e.g. big solid blue headers); use subtle accents instead.
+- **Typography:** Clear hierarchy: page title 1.5–1.75rem, section titles 1.1–1.25rem, body 0.9–1rem. Use font-weight (600–700 for titles, 400 for body) and letter-spacing where it helps readability. Prefer system fonts or one clean sans (e.g. Inter, Segoe UI, system-ui).
+- **Spacing:** Use consistent spacing (e.g. 1rem, 1.5rem, 2rem). Give cards and sections adequate padding (1rem–1.5rem). Avoid cramped tables or overlapping elements.
+- **Cards and panels:** Use light borders (1px solid #e0e0e0 or #2d3139) and subtle box-shadow (e.g. 0 1px 3px rgba(0,0,0,0.08)) for separation. Rounded corners (6–8px) are fine; avoid overly large radii.
+- **Tables:** Use clear header row (background #f8f9fa or #2d3139, bold or semibold text). Prefer alternating row background or hover state for readability. Align numbers right, text left. Ensure cells have padding (0.5rem–0.75rem).
+- **Overall:** The result should look like a polished enterprise or ops dashboard: clean, readable, and professional—not a prototype or placeholder.
+
 ## Leaflet Required Template
 ```html
 <link rel="stylesheet" href="./leaflet.css" />

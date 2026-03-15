@@ -182,7 +182,8 @@ def run_generate(
     lib_docs = {lid: load_lib_doc(lid) for lid in lib_ids}
     system_with_libs = _build_system_with_libs(system_base, lib_ids, lib_docs)
 
-    sample = main_cube_data[:3] if main_cube_data else []
+    # Send enough rows so tables/dashboards are populated (cap to avoid token overflow).
+    sample = main_cube_data[:25] if main_cube_data else []
     user_msg = build_user_message(
         field_explanations,
         user_prompt,
