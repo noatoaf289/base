@@ -79,8 +79,23 @@ def build_user_message(
         f"Name: {main_cube_name}",
         f"Row keys: {keys_hint}",
         "",
-        "## Data (embed this in the page and render from it)",
-        "The following JSON is the data to show. You MUST embed it in the page (e.g. in a <script> tag as window.data = [...]) and render all tables, charts, and lists from this data so the UI is not empty.",
+        "## Data (REQUIRED: embed and render this)",
+        "The JSON below is the real data. Your HTML MUST include:",
+        "1. A container in <body>, e.g. <div id=\"root\"></div>.",
+        "2. <script>window.data = <the exact array from below>;</script>",
+        "3. A second script that runs on load and fills the container from window.data. Example pattern (adapt to your layout):",
+        "   document.addEventListener('DOMContentLoaded', function() {",
+        "     var root = document.getElementById('root');",
+        "     if (!window.data || !root) return;",
+        "     window.data.forEach(function(item) {",
+        "       var el = document.createElement('div');",
+        "       el.className = 'card';",
+        "       if (item.image_url) { var img = document.createElement('img'); img.src = item.image_url; img.alt = item.name || ''; el.appendChild(img); }",
+        "       if (item.name) { var n = document.createElement('div'); n.textContent = item.name; el.appendChild(n); }",
+        "       root.appendChild(el);",
+        "     });",
+        "   });",
+        "Without step 3 the page will be blank. Do not omit the render script.",
         "```json",
         data_json,
         "```",
@@ -91,11 +106,7 @@ def build_user_message(
         "## Action items (for this task)",
         *[f"- {a}" for a in action_items],
         "",
-        "Output a single HTML document (one page with embedded <style> and <script>). "
-        "Set window.data to the JSON above so the page shows real data on load. Populate every table/chart/section from window.data. "
-        "For each library you use, insert a placeholder in <head>: <Library:TagName /> (e.g. <Library:Leaflet />, <Library:ChartJs />, <Library:Lodash />). "
-        "Do not include real script/link tags for libs—only these placeholders. "
-        "At the very end of your response, add a single line: LIBRARIES_USED: id1, id2 (lib ids, e.g. leaflet, chart-js, lodash).",
+        "Output one full HTML document: <head> with <style> and <Library:... /> placeholders, <body> with a root container, then window.data script, then the DOMContentLoaded render script that builds the UI from window.data. End with: LIBRARIES_USED: id1, id2",
     ]
     return "\n".join(lines)
 

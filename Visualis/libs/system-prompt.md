@@ -13,10 +13,12 @@ Produce code and docs that use **only** the locally provided UMD/dist libraries 
 - Always explain briefly (1–2 short sentences) **why each chosen library matches the identified features** in your reasoning, even if the final answer only contains HTML/CSS/JS.
 
 ## Runtime Data Contract
-- Anytime the user wants to inject data from outside,input data is provided in `window.data`.
+- Anytime the user wants to inject data from outside, input data is provided in `window.data`.
 - `window.data` is always an **array of objects**.
 - Do not invent a schema for these objects.
 - Read and use only fields described by the user prompt.
+- **Mandatory data embedding:** When the user message includes a "## Data" section with a JSON array, your HTML output **must** (1) include a `<script>` tag that assigns that exact array to `window.data`, and (2) include a script that runs on load and **builds the visible DOM from `window.data`** (e.g. loop over `window.data`, create cards/rows, append to a container). Do **not** output only CSS or a static title—the page must show the actual data and, when present, images.
+- **When objects include an image URL field** (e.g. `image_url`, `url`, `photo_url`): render a **responsive** layout—e.g. CSS Grid or Flexbox with responsive columns (e.g. 1 col on narrow, 2–3 on medium, 4+ on wide), one card per entity with the image and associated fields. Use `<img src="..." alt="...">` with the provided URL. Ensure images are responsive (e.g. `max-width: 100%`, `object-fit: cover` inside a fixed-aspect container if needed).
 
 ## User Prompt Requirements
 - The user prompt must describe the object schema in `window.data` (field names, types, and meaning).
@@ -108,7 +110,8 @@ function renderChart(ctx, data) {
 - **Typography:** Clear hierarchy: page title 1.5–1.75rem, section titles 1.1–1.25rem, body 0.9–1rem. Use font-weight (600–700 for titles, 400 for body) and letter-spacing where it helps readability. Prefer system fonts or one clean sans (e.g. Inter, Segoe UI, system-ui).
 - **Spacing:** Use consistent spacing (e.g. 1rem, 1.5rem, 2rem). Give cards and sections adequate padding (1rem–1.5rem). Avoid cramped tables or overlapping elements.
 - **Cards and panels:** Use light borders (1px solid #e0e0e0 or #2d3139) and subtle box-shadow (e.g. 0 1px 3px rgba(0,0,0,0.08)) for separation. Rounded corners (6–8px) are fine; avoid overly large radii.
-- **Tables:** Use clear header row (background #f8f9fa or #2d3139, bold or semibold text). Prefer alternating row background or hover state for readability. Align numbers right, text left. Ensure cells have padding (0.5rem–0.75rem).
+- **Tables:** Always style tables for a professional look: `border-collapse: collapse`, full width (`width: 100%`), clear header row (e.g. `background: #f0f2f5` or `#2d3139` for dark theme, `font-weight: 600`, `padding: 0.75rem 1rem`). Body cells: `padding: 0.65rem 1rem`, `border-bottom: 1px solid #e8eaed` (or `#3d4149`). Use alternating row background (e.g. `tbody tr:nth-child(even) { background: #fafafa }`) or row hover (`tbody tr:hover { background: #f5f5f5 }`). Align text left, numbers right. Wrap the table in a container with `overflow-x: auto` and optional light `box-shadow` so it doesn’t look flat.
+- **Table with expandable image:** When the data has name, phone, last_seen_location and image_url: (1) Table with columns Name, Phone, Last seen, and a narrow **Expand** column. (2) Expand control: use a small button or link (e.g. "View" or ▼), styled with a subtle border or background so it’s clearly clickable—e.g. `padding: 0.35rem 0.75rem`, `border-radius: 4px`, `border: 1px solid #ddd`, `background: #f8f9fa`. (3) Expanded content: when toggled, show the image **inside the table** or in a row directly below that spans all columns; use a single cell with `padding: 1rem`, `background: #fafafa` (or similar), and put the image in a container with `max-width: 280px`, `border-radius: 8px`, `overflow: hidden`, `box-shadow: 0 2px 8px rgba(0,0,0,0.08)` so the image is framed and aligned with the row—not floating or detached. Only one expanded row visible at a time is fine; closing one before opening another keeps the layout clean.
 - **Overall:** The result should look like a polished enterprise or ops dashboard: clean, readable, and professional—not a prototype or placeholder.
 
 ## Leaflet Required Template

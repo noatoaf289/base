@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { errorBody } from './errorBody.js';
-import { stubPackageResults, stubIntelligenceResults, stubLibs, putRun, getRun } from './stubData.js';
+import { stubPackageResults, stubIntelligenceResults, stubPeopleWithPhotosResults, stubLibs, putRun, getRun } from './stubData.js';
 
 const app = express();
 app.use(cors());
@@ -24,6 +24,7 @@ const stubSearchResultsRaw = [
   { Id: 1, Logo: '', Name: 'Sample Sales Package', Type: 'Package' },
   { Id: 2, Logo: '', Name: 'User Analytics Package', Type: 'Package' },
   { Id: 3, Logo: '', Name: 'Intelligence Briefing', Type: 'Package' },
+  { Id: 4, Logo: '', Name: 'People & Photos', Type: 'Package' },
   { Id: 99, Logo: '', Name: 'Internal Template', Type: 'Template' },
 ];
 const PACKAGE_TYPE = 'Package';
@@ -196,9 +197,8 @@ app.get('/api/flapi/packages/search', (req, res) => {
 
 function getRunResults(packageId) {
   const id = String(packageId).trim();
-  if (id === '3') {
-    return { results: { ...stubIntelligenceResults } };
-  }
+  if (id === '3') return { results: { ...stubIntelligenceResults } };
+  if (id === '4') return { results: { ...stubPeopleWithPhotosResults } };
   return { results: { ...stubPackageResults } };
 }
 

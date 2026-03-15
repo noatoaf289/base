@@ -73,12 +73,12 @@ def _replacement_tags(config: LibraryInjectionConfig) -> str:
 
 
 def _data_listener_script() -> str:
-    """Script injected at end of body: postMessage listener -> window.data."""
+    """Script injected at end of body: postMessage listener -> window.data. Do not overwrite window.data if snippet already set it (so embedded data + render script work)."""
     event_name = IFRAME_DATA_EVENT.replace("\\", "\\\\").replace('"', '\\"')
     return f'''<script>
 (function(){{
   const eventName = "{event_name}";
-  window.data = null;
+  if (window.data === undefined) window.data = null;
   window.addEventListener("message", function(event) {{
     const message = event.data;
     if (!message || message.type !== eventName) return;
