@@ -8,9 +8,15 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   server: {
-    proxy: {
-      '/api': { target: 'http://localhost:4000', changeOrigin: true },
-      '/libs': { target: 'http://localhost:4000', changeOrigin: true },
-    },
+    // Mock only: 4000. With real AI: set VITE_PROXY_TARGET=8000 then npm run dev (target becomes http://localhost:8000)
+    proxy: (() => {
+      const raw = process.env.VITE_PROXY_TARGET || '4000';
+      const target =
+        raw.startsWith('http') ? raw : `http://localhost:${raw.replace(/^localhost:?/, '')}`;
+      return {
+        '/api': { target, changeOrigin: true },
+        '/libs': { target, changeOrigin: true },
+      };
+    })(),
   },
 });

@@ -38,6 +38,7 @@ export const generateRequestSchema = z.object({
   mainCubeName: z.string().min(1),
   mainCubeData: z.array(z.unknown()),
   librariesUsed: z.array(z.string()).optional(),
+  modelId: z.string().optional(),
 });
 export type GenerateRequest = z.infer<typeof generateRequestSchema>;
 
@@ -53,6 +54,7 @@ export type GenerateResponse = z.infer<typeof generateResponseSchema>;
 export const feedbackRequestSchema = z.object({
   runId: z.string().min(1),
   feedback: z.string().min(1),
+  modelId: z.string().optional(),
 });
 export type FeedbackRequest = z.infer<typeof feedbackRequestSchema>;
 
@@ -65,3 +67,18 @@ export const errorBodySchema = z.object({
   }),
 });
 export type ErrorBody = z.infer<typeof errorBodySchema>;
+
+/** GET /api/config — baseUrl, iframeDataEvent */
+export const configSchema = z.object({
+  baseUrl: z.string(),
+  iframeDataEvent: z.string(),
+});
+export type Config = z.infer<typeof configSchema>;
+
+/** GET /api/models — list of available models */
+export const modelDescriptorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  provider: z.string(),
+});
+export type ModelDescriptor = z.infer<typeof modelDescriptorSchema>;

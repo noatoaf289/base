@@ -1,7 +1,11 @@
-"""S3-compatible storage for generated HTML snippets."""
+"""S3-compatible storage for generated HTML snippets. When S3 is not configured, uses in-memory fallback so publish/preview links work."""
 from __future__ import annotations
 
 import os
+
+# In-memory fallback when S3_URL is not set; allows GET /api/snippets/<run_id>.html to work without S3.
+_memory_snippets: dict[str, str] = {}
+_MAX_MEMORY_SNIPPETS = 200
 
 
 def _client():
@@ -28,39 +32,43 @@ def _client():
 
 
 def put_snippet(run_id: str, html: str) -> bool:
-    """Upload injected HTML to S3. Key: snippets/<run_id>.html. Returns True if uploaded."""
+    """Store snippet: upload to S3 when configured, and always keep in-memory fallback for GET /api/snippets/<run_id>.html."""
     client = _client()
-    if not client:
-        return False
-    bucket = os.environ.get("S3_BUCKET", "visualis").strip()
-    key = f"snippets/{run_id}.html"
-    try:
-        client.put_object(
-            Bucket=bucket,
-            Key=key,
-            Body=html.encode("utf-8"),
-            ContentType="text/html; charset=utf-8",
-        )
-        return True
-    except Exception:
-        return False
+    if client:
+        bucket = os.environ.get("S3_BUCKET", "visualis").strip()
+        key = f"snippets/{run_id}.html"
+        try:
+            client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=html.encode("utf-8"),
+                ContentType="text/html; charset=utf-8",
+            )
+        except Exception:
+            pass
+    # In-memory fallback so publish link works when S3 is not configured
+    if len(_memory_snippets) >= _MAX_MEMORY_SNIPPETS:
+        # Evict oldest (first inserted) keys; dict is insertion-ordered in Python 3.7+
+        for k in list(_memory_snippets.keys())[:_MAX_MEMORY_SNIPPETS // 2]:
+            del _memory_snippets[k]
+    _memory_snippets[run_id] = html
+    return client is not None
 
 
 def get_snippet(run_id: str) -> str | None:
-    """Download HTML from S3. Returns None when not found/unavailable."""
+    """Return snippet from S3 when configured, else from in-memory fallback. None when not found."""
     client = _client()
-    if not client:
-        return None
-    bucket = os.environ.get("S3_BUCKET", "visualis").strip()
-    key = f"snippets/{run_id}.html"
-    try:
-        obj = client.get_object(Bucket=bucket, Key=key)
-        body = obj.get("Body")
-        if body is None:
-            return None
-        data = body.read()
-        if isinstance(data, bytes):
-            return data.decode("utf-8", errors="replace")
-        return str(data)
-    except Exception:
-        return None
+    if client:
+        bucket = os.environ.get("S3_BUCKET", "visualis").strip()
+        key = f"snippets/{run_id}.html"
+        try:
+            obj = client.get_object(Bucket=bucket, Key=key)
+            body = obj.get("Body")
+            if body is not None:
+                data = body.read()
+                if isinstance(data, bytes):
+                    return data.decode("utf-8", errors="replace")
+                return str(data)
+        except Exception:
+            pass
+    return _memory_snippets.get(run_id)

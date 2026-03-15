@@ -5,9 +5,16 @@ All client requests go through this server.
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+# Load .env from project root (Visualis folder) so MINIMAX_API_KEY etc. are set
+_root = Path(__file__).resolve().parents[1]
+_env_file = _root / ".env"
+if _env_file.is_file():
+    from dotenv import load_dotenv
+    load_dotenv(_env_file)
 import uuid
 from base64 import b64encode
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -23,7 +30,7 @@ from server.s3_client import get_snippet, put_snippet
 app = FastAPI(title="Visualis Server")
 
 AGENT_URL = os.environ.get("AGENT_URL", "http://localhost:8002").rstrip("/")
-FLAPI_URL = os.environ.get("FLAPI_URL", "http://localhost:8003").rstrip("/")
+FLAPI_URL = os.environ.get("FLAPI_URL", "http://localhost:4000").rstrip("/")
 STATIC_DIR = os.environ.get("STATIC_DIR", str(Path(__file__).resolve().parents[1] / "static"))
 MODEL_URL = os.environ.get("MODEL_URL", "http://localhost:8010/v1").rstrip("/")
 MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-Coder-1.5B-Instruct")
@@ -63,6 +70,43 @@ def _extract_model_text(response_json: dict[str, Any]) -> str:
     if isinstance(text, str):
         return text
     return ""
+
+
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000").rstrip("/")
+IFRAME_DATA_EVENT = os.environ.get("IFRAME_DATA_EVENT", "VISUALIS_IFRAME_DATA").strip()
+
+# Optional MiniMax (OpenAI-compatible)
+MINIMAX_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "").rstrip("/")
+MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "").strip()
+MINIMAX_MODEL = os.environ.get("MINIMAX_MODEL", "mini-max-01").strip()
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "").strip()
+
+
+def _minimax_available() -> bool:
+    """MiniMax is available via OpenRouter (no Group ID) or via native API."""
+    if OPENROUTER_API_KEY:
+        return True
+    return bool(MINIMAX_BASE_URL and MINIMAX_API_KEY)
+
+
+# --- Config & Models (for client) ---
+@app.get("/api/config")
+async def get_config() -> dict:
+    """Public config: baseUrl for publish links, iframeDataEvent for preview postMessage."""
+    return {
+        "baseUrl": BASE_URL,
+        "iframeDataEvent": IFRAME_DATA_EVENT,
+    }
+
+
+@app.get("/api/models")
+async def list_models() -> list[dict]:
+    """List available models for generation. When MiniMax is configured, list it first so UI can default to it."""
+    default_entry = {"id": "default", "name": "Default (vLLM / env)", "provider": "local"}
+    minimax_entry = {"id": "minimax", "name": "MiniMax", "provider": "MiniMax"}
+    if _minimax_available():
+        return [minimax_entry, default_entry]
+    return [default_entry]
 
 
 # --- Static & SPA ---
@@ -163,6 +207,7 @@ class GenerateBody(BaseModel):
     userPrompt: str
     mainCubeName: str
     mainCubeData: list[dict[str, Any]]
+    modelId: str = Field(default="default", description="Model to use: default | minimax")
 
 
 @app.post("/api/generate")
@@ -174,6 +219,7 @@ async def generate(body: GenerateBody) -> JSONResponse:
         "userPrompt": body.userPrompt,
         "mainCubeName": body.mainCubeName,
         "mainCubeData": body.mainCubeData,
+        "modelId": body.modelId,
     }
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -196,12 +242,7 @@ async def generate(body: GenerateBody) -> JSONResponse:
     html_snippet, libraries_used = inject_libs_into_html(
         raw_snippet, LIBS_DESCRIPTORS, agent_libs
     )
-    uploaded = put_snippet(run_id, html_snippet)
-    if not uploaded:
-        return JSONResponse(
-            status_code=502,
-            content=_error_body("storage_unavailable", "Failed to store snippet in S3"),
-        )
+    put_snippet(run_id, html_snippet)  # optional: when S3 not configured, snippet still returned for preview
     return JSONResponse(
         content={
             "runId": run_id,
@@ -215,6 +256,7 @@ async def generate(body: GenerateBody) -> JSONResponse:
 class FeedbackBody(BaseModel):
     runId: str
     feedback: str
+    modelId: str = Field(default="default", description="Model to use: default | minimax")
 
 
 class PromptRunBody(BaseModel):
@@ -226,7 +268,7 @@ class PromptRunBody(BaseModel):
 
 @app.post("/api/feedback")
 async def feedback(body: FeedbackBody) -> JSONResponse:
-    payload = {"runId": body.runId, "feedback": body.feedback}
+    payload = {"runId": body.runId, "feedback": body.feedback, "modelId": body.modelId}
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             r = await client.post(f"{AGENT_URL}/feedback", json=payload)
@@ -251,12 +293,7 @@ async def feedback(body: FeedbackBody) -> JSONResponse:
     html_snippet, libraries_used = inject_libs_into_html(
         raw_snippet, LIBS_DESCRIPTORS, agent_libs
     )
-    uploaded = put_snippet(body.runId, html_snippet)
-    if not uploaded:
-        return JSONResponse(
-            status_code=502,
-            content=_error_body("storage_unavailable", "Failed to store snippet in S3"),
-        )
+    put_snippet(body.runId, html_snippet)  # optional when S3 not configured
     return JSONResponse(
         content={
             "runId": body.runId,

@@ -6,6 +6,8 @@ import type {
   GenerateResponse,
   FeedbackRequest,
   ErrorBody,
+  Config,
+  ModelDescriptor,
 } from './schemas';
 
 const API_BASE = '';
@@ -18,10 +20,25 @@ const parseJson = async <T>(res: Response): Promise<T> => {
 
 const ensureOk = async (res: Response): Promise<void> => {
   if (res.ok) return;
-  const body = await parseJson<ErrorBody>(res).catch(() => ({ error: { code: 'unknown', message: res.statusText } }));
-  const message = body?.error?.message ?? `HTTP ${res.status}`;
+  const body = await parseJson<ErrorBody & { detail?: string }>(res).catch(() => ({}));
+  const message =
+    body?.error?.message ?? (typeof body?.detail === 'string' ? body.detail : null) ?? `HTTP ${res.status}`;
   console.error('[API]', res.status, message, body?.error?.code);
   throw new Error(message);
+};
+
+/** GET /api/config — baseUrl, iframeDataEvent for publish link and preview postMessage */
+export const getConfig = async (): Promise<Config> => {
+  const res = await fetch(`${API_BASE}/api/config`);
+  await ensureOk(res);
+  return parseJson<Config>(res);
+};
+
+/** GET /api/models — list of models for selector */
+export const getModels = async (): Promise<ModelDescriptor[]> => {
+  const res = await fetch(`${API_BASE}/api/models`);
+  await ensureOk(res);
+  return parseJson<ModelDescriptor[]>(res);
 };
 
 /** GET /api/flapi/packages/search?q= — package autocomplete (server-spec §2.1) */

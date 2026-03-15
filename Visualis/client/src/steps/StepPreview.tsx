@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import type { PreviewState } from '@/types/flow';
+import type { Config } from '@/api/schemas';
 
-/** Must match server IFRAME_DATA_EVENT env (server-spec §6). Preview simulates postMessage flow. */
-const IFRAME_DATA_EVENT = 'IFRAME_DATA';
+/** Fallback when config not yet loaded; should match server default (server-spec §6). */
+const DEFAULT_IFRAME_DATA_EVENT = 'VISUALIS_IFRAME_DATA';
 
 export interface StepPreviewProps {
   preview: PreviewState;
   mainCubeData: unknown[];
+  config: Config | null;
   onStartOver: () => void;
   onFeedback: (feedback: string) => void;
   feedbackLoading: boolean;
@@ -19,16 +21,25 @@ export interface StepPreviewProps {
 export const StepPreview: FC<StepPreviewProps> = ({
   preview,
   mainCubeData,
+  config,
   onStartOver,
   onFeedback,
   feedbackLoading,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [feedbackText, setFeedbackText] = useState('');
+  const iframeDataEvent = config?.iframeDataEvent ?? DEFAULT_IFRAME_DATA_EVENT;
+  const publishUrl = config?.baseUrl
+    ? `${config.baseUrl.replace(/\/$/, '')}/api/snippets/${preview.runId}.html`
+    : '';
 
   const copyCode = useCallback(() => {
     void navigator.clipboard.writeText(preview.htmlSnippet);
   }, [preview.htmlSnippet]);
+
+  const copyPublishLink = useCallback(() => {
+    if (publishUrl) void navigator.clipboard.writeText(publishUrl);
+  }, [publishUrl]);
 
   const handleFeedbackSubmit = useCallback(() => {
     if (!feedbackText.trim()) return;
@@ -40,10 +51,10 @@ export const StepPreview: FC<StepPreviewProps> = ({
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
     iframe.contentWindow.postMessage(
-      { type: IFRAME_DATA_EVENT, payload: mainCubeData },
+      { type: iframeDataEvent, payload: mainCubeData },
       '*'
     );
-  }, [mainCubeData]);
+  }, [mainCubeData, iframeDataEvent]);
 
   useEffect(() => {
     injectDataIntoIframe();
@@ -61,7 +72,28 @@ export const StepPreview: FC<StepPreviewProps> = ({
           <Button variant="outline" onClick={copyCode}>
             Copy code
           </Button>
+          {publishUrl && (
+            <>
+              <Button variant="default" onClick={copyPublishLink}>
+                Copy publish link
+              </Button>
+              <Button
+                variant="outline"
+                asChild
+              >
+                <a href={publishUrl} target="_blank" rel="noopener noreferrer">
+                  Open published page
+                </a>
+              </Button>
+            </>
+          )}
         </div>
+        {publishUrl && (
+          <p className="text-sm text-muted-foreground">
+            Publish link (share or embed in iframe):{' '}
+            <code className="rounded bg-muted px-1 py-0.5 break-all">{publishUrl}</code>
+          </p>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-2">

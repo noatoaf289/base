@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
-import { runPackage, generateSnippet, sendFeedback } from '@/api/client';
+import { useState, useCallback, useEffect } from 'react';
+import { runPackage, generateSnippet, sendFeedback, getConfig, getModels } from '@/api/client';
 import { StepParams } from '@/steps/StepParams';
 import { StepCubeFields } from '@/steps/StepCubeFields';
 import { StepPrompt } from '@/steps/StepPrompt';
 import { StepPreview } from '@/steps/StepPreview';
 import type { Step, PackageRunState, PreviewState, FieldExplanation } from '@/types/flow';
+import type { Config, ModelDescriptor } from '@/api/schemas';
 import { flapiRunResponseSchema } from '@/api/schemas';
 
 const extractCubeNames = (results: Record<string, unknown[]>): string[] =>
@@ -28,6 +29,8 @@ export const App = () => {
   const [generating, setGenerating] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
 
+  const [config, setConfig] = useState<Config | null>(null);
+  const [models, setModels] = useState<ModelDescriptor[]>([]);
   const [state, setState] = useState<PackageRunState>({
     packageId: '',
     packageDisplayName: '',
@@ -37,7 +40,18 @@ export const App = () => {
     mainCubeData: [],
     fieldExplanations: [],
     userPrompt: '',
+    modelId: 'default',
   });
+
+  useEffect(() => {
+    getConfig().then(setConfig).catch(console.error);
+    getModels().then((list) => {
+      setModels(list);
+      if (list.length > 0) {
+        setState((s) => (s.modelId === 'default' ? { ...s, modelId: list[0].id } : s));
+      }
+    }).catch(console.error);
+  }, []);
 
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [runParamsJson, setRunParamsJson] = useState('{\n  "param1": "value1",\n  "filters": {}\n}');
@@ -84,6 +98,7 @@ export const App = () => {
         userPrompt: state.userPrompt,
         mainCubeName: state.mainCubeName,
         mainCubeData: state.mainCubeData,
+        modelId: state.modelId,
       };
       const res = await generateSnippet(body);
       setPreview({
@@ -104,7 +119,11 @@ export const App = () => {
       if (!preview) return;
       setFeedbackLoading(true);
       try {
-        const res = await sendFeedback({ runId: preview.runId, feedback });
+        const res = await sendFeedback({
+          runId: preview.runId,
+          feedback,
+          modelId: state.modelId,
+        });
         setPreview({
           runId: res.runId,
           htmlSnippet: res.htmlSnippet,
@@ -114,7 +133,7 @@ export const App = () => {
         setFeedbackLoading(false);
       }
     },
-    [preview]
+    [preview, state.modelId]
   );
 
   const handleStartOver = useCallback(() => {
@@ -183,6 +202,9 @@ export const App = () => {
         <StepPrompt
           userPrompt={state.userPrompt}
           onPromptChange={(v) => setState((s) => ({ ...s, userPrompt: v }))}
+          modelId={state.modelId}
+          onModelChange={(id) => setState((s) => ({ ...s, modelId: id }))}
+          models={models}
           onGenerate={handleGenerate}
           generating={generating}
           error={genError}
@@ -193,6 +215,7 @@ export const App = () => {
         <StepPreview
           preview={preview}
           mainCubeData={state.mainCubeData}
+          config={config}
           onStartOver={handleStartOver}
           onFeedback={handleFeedback}
           feedbackLoading={feedbackLoading}

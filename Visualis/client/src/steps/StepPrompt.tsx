@@ -2,10 +2,14 @@ import { type FC } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import type { ModelDescriptor } from '@/api/schemas';
 
 export interface StepPromptProps {
   userPrompt: string;
   onPromptChange: (v: string) => void;
+  modelId: string;
+  onModelChange: (id: string) => void;
+  models: ModelDescriptor[];
   onGenerate: () => void;
   generating: boolean;
   error: string | null;
@@ -14,6 +18,9 @@ export interface StepPromptProps {
 export const StepPrompt: FC<StepPromptProps> = ({
   userPrompt,
   onPromptChange,
+  modelId,
+  onModelChange,
+  models,
   onGenerate,
   generating,
   error,
@@ -26,6 +33,23 @@ export const StepPrompt: FC<StepPromptProps> = ({
       </p>
     </CardHeader>
     <CardContent className="space-y-4">
+      {models.length > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="model">Model</Label>
+          <select
+            id="model"
+            className="flex h-9 w-full max-w-xs rounded-md border border-border bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={modelId}
+            onChange={(e) => onModelChange(e.target.value)}
+          >
+            {models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name} ({m.provider})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="prompt">Prompt</Label>
         <textarea

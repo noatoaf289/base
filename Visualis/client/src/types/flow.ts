@@ -16,6 +16,7 @@ export interface PackageRunState {
   mainCubeData: unknown[];
   fieldExplanations: FieldExplanation[];
   userPrompt: string;
+  modelId: string;
 }
 
 export interface PreviewState {

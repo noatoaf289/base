@@ -169,20 +169,36 @@ const buildMockModelPromptText = (body) => {
 };
 
 // ——— 2. Flapi proxy (mock) ———
-app.get('/api/flapi/packages/search', (req, res) => {
-  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  if (!query) {
-    return res
-      .status(422)
-      .json(errorBody('validation_failed', 'Query parameter "q" is required'));
+// Real Server proxies to FLAPI_URL/package/v1/search/{q} and FLAPI_URL/package/{id}, so mock must expose those too
+function handlePackageSearch(query) {
+  const q = (query || '').trim();
+  if (!q) {
+    return { status: 422, body: errorBody('validation_failed', 'Query parameter "q" is required') };
   }
-
-  const lowered = query.toLowerCase();
+  const lowered = q.toLowerCase();
   const nameMatch = (pkg) => pkg.Name.toLowerCase().includes(lowered);
   const packagesOnly = stubSearchResultsRaw.filter((pkg) => pkg.Type === PACKAGE_TYPE);
   const filtered = packagesOnly.filter(nameMatch);
+  return { status: 200, body: filtered };
+}
 
-  res.status(200).json(filtered);
+app.get('/package/v1/search/:partial', (req, res) => {
+  const { status, body } = handlePackageSearch(req.params.partial);
+  res.status(status).json(body);
+});
+
+app.get('/api/flapi/packages/search', (req, res) => {
+  const query = typeof req.query.q === 'string' ? req.query.q : '';
+  const { status, body } = handlePackageSearch(query);
+  res.status(status).json(body);
+});
+
+app.post('/package/:packageId', (req, res) => {
+  const { packageId } = req.params;
+  if (!packageId?.trim()) {
+    return res.status(400).json(errorBody('invalid_package_id', 'packageId is required'));
+  }
+  res.status(200).json({ results: { ...stubPackageResults } });
 });
 
 app.post('/api/flapi/packages/:packageId/run', (req, res) => {
@@ -193,6 +209,21 @@ app.post('/api/flapi/packages/:packageId/run', (req, res) => {
       .json(errorBody('invalid_package_id', 'packageId is required'));
   }
   res.status(200).json({ results: { ...stubPackageResults } });
+});
+
+// ——— Config & Models (for client) ———
+app.get('/api/config', (_req, res) => {
+  res.status(200).json({
+    baseUrl: BASE_URL,
+    iframeDataEvent: IFRAME_DATA_EVENT,
+  });
+});
+
+app.get('/api/models', (_req, res) => {
+  res.status(200).json([
+    { id: 'default', name: 'Default (mock)', provider: 'local' },
+    { id: 'minimax', name: 'MiniMax', provider: 'MiniMax' },
+  ]);
 });
 
 // ——— 3. Libs ———

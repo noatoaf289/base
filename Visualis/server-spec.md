@@ -23,11 +23,34 @@ No JSON contract; these are static/file responses.
 
 ---
 
-## 2. Flapi proxy
+## 2. Config and models (client bootstrap)
+
+### 2.0 GET /api/config
+
+Returns public config used by the client for publish links and preview postMessage.
+
+- **Method:** `GET`
+- **Path:** `/api/config`
+- **Response:** `200 OK` with body `{ "baseUrl": string, "iframeDataEvent": string }`.
+  - `baseUrl`: server base URL (from env `BASE_URL`); used to build publish link `/api/snippets/:runId.html`.
+  - `iframeDataEvent`: event name for postMessage data injection (from env `IFRAME_DATA_EVENT`).
+
+### 2.0b GET /api/models
+
+Returns list of available models for the generate/feedback model selector.
+
+- **Method:** `GET`
+- **Path:** `/api/models`
+- **Response:** `200 OK` with body array of `{ "id": string, "name": string, "provider": string }`.
+  - At least one entry: `id: "default"` (env MODEL_*). If MiniMax is configured (MINIMAX_BASE_URL + MINIMAX_API_KEY), a second entry `id: "minimax"` is included.
+
+---
+
+## 3. Flapi proxy
 
 The server proxies to flapi so the client never talks to flapi directly.
 
-### 2.1 Search packages (autocomplete)
+### 3.1 Search packages (autocomplete)
 
 This wraps flapi `GET /package/v1/search/<partial-package-id>` and is used for the package id autocomplete in the UI.
 
@@ -57,7 +80,7 @@ This wraps flapi `GET /package/v1/search/<partial-package-id>` and is used for t
 
 ---
 
-### 2.2 Run package
+### 3.2 Run package
 
 **Request**
 
@@ -95,11 +118,11 @@ Content-Type: application/json
 
 ---
 
-## 3. Libs
+## 4. Libs
 
 The server exposes lib metadata so the client/agent can know which libs exist and their type (for injection: js-only, js+css, css-only). Lib **content** is not exposed to the client; the server injects it into generated HTML.
 
-### 3.1 List available libs
+### 4.1 List available libs
 
 **Request**
 
@@ -130,7 +153,7 @@ The server exposes lib metadata so the client/agent can know which libs exist an
 ]
 ```
 
-### 3.2 Serve lib static files (optional)
+### 4.2 Serve lib static files (optional)
 
 If the generated snippet references lib files by URL (e.g. webfonts, or non-inlined assets), the server can serve them.
 
@@ -142,7 +165,7 @@ This is optional and only needed when snippets use external refs; primary model 
 
 ---
 
-## 4. Agent (Langchain) and snippet post-processing
+## 5. Agent (Langchain) and snippet post-processing
 
 The server calls the langchain agent (and optionally a vLLM/completions API). The agent returns HTML that may contain **library placeholder tags** (e.g. `<Library:Leaflet />`) and is expected to wait for external data injection. The server is responsible for:
 
@@ -150,7 +173,7 @@ The server calls the langchain agent (and optionally a vLLM/completions API). Th
 - Injecting a data listener script using the **Data Injection Flow** (section 6).
 - Storing the final, fully-injected HTML in S3 (initial + feedback), and the reasoning summary in Redis.
 
-### 4.1 Generate HTML snippet (initial)
+### 5.1 Generate HTML snippet (initial)
 
 **Request**
 
@@ -167,6 +190,7 @@ The server calls the langchain agent (and optionally a vLLM/completions API). Th
 | `mainCubeName` | string | Yes | Selected cube name (from package run results). |
 | `mainCubeData` | `unknown[]` | Yes | Array of result objects for the main cube (injected as `window.data`). |
 | `librariesUsed` | `string[]` | No | Reserved for future use (e.g. hint libs). |
+| `modelId` | string | No | Model to use: `"default"` (env MODEL_*) or `"minimax"` when configured. Default `"default"`. |
 
 **Response**
 
@@ -207,7 +231,7 @@ Content-Type: application/json
 }
 ```
 
-### 4.2 Feedback loop (continuation)
+### 5.2 Feedback loop (continuation)
 
 **Request**
 
@@ -242,7 +266,7 @@ Content-Type: application/json
 }
 ```
 
-### 4.3 Snippet model prompt execution (non-streaming)
+### 5.3 Snippet model prompt execution (non-streaming)
 
 Allows generated HTML snippets (via injected helper library) to run a prompt bundle against a server-managed OpenAI-compatible model endpoint without exposing model credentials inside snippet code.
 
@@ -277,7 +301,7 @@ Allows generated HTML snippets (via injected helper library) to run a prompt bun
   - `modelResponse`: full raw upstream model response for advanced parsing.
 - **Upstream failure:** `502 Bad Gateway` with `{ "error": { "code": "model_unavailable" | "model_error", "message": "...", "details"?: ... } }`.
 
-### 4.4 Streaming reasoning (optional)
+### 5.4 Streaming reasoning (optional)
 
 To support “agent’s reasoning and spinning circles”, the server may expose a streaming channel. Preferred: **SSE** or **Socket.IO** so the client can show incremental reasoning without blocking.
 
@@ -294,7 +318,7 @@ To support “agent’s reasoning and spinning circles”, the server may expose
 
 If not implemented in v1, the client can show a single spinner until the synchronous `POST /api/generate` or `POST /api/feedback` returns.
 
-### 4.5 Serve persisted snippet HTML
+### 5.5 Serve persisted snippet HTML
 
 To support iframe loading by URL, the server must expose a snippet retrieval route.
 
@@ -307,11 +331,11 @@ To support iframe loading by URL, the server must expose a snippet retrieval rou
 
 ---
 
-## 5. Library Injection Flow (server behavior)
+## 6. Library Injection Flow (server behavior)
 
 This section formalizes how the backend turns model-produced **placeholder tags** into real script/style/link tags using local dist files.
 
-### 5.1 Placeholder tags
+### 6.1 Placeholder tags
 
 - The model is instructed to emit lightweight, non-visual placeholders in the HTML, for example:
   - `<Library:Leaflet />`
@@ -322,7 +346,7 @@ This section formalizes how the backend turns model-produced **placeholder tags*
   - Which placeholder tag(s) to emit.
   - Where they should conceptually live (`<head>` or bottom of `<body>`).
 
-### 5.2 Backend mapping dictionary
+### 6.2 Backend mapping dictionary
 
 - The backend keeps an internal dictionary that maps placeholder tags to their final injection:
 
@@ -341,7 +365,7 @@ interface LibraryInjectionConfig {
   - `type: "js-css"`
   - `files: { js: "leaflet.js", css: "leaflet.css" }`
 
-### 5.3 Injection algorithm (applied in `/api/generate` and `/api/feedback`)
+### 6.3 Injection algorithm (applied in `/api/generate` and `/api/feedback`)
 
 1. Take the raw HTML returned by the agent (with placeholders).
 2. Parse the HTML and locate each known placeholder tag.
@@ -368,11 +392,11 @@ Notes:
 
 ---
 
-## 6. Data Injection Flow (server behavior)
+## 7. Data Injection Flow (server behavior)
 
 The snippet is rendered in an iframe in the host dashboard. Data for the selected cube is passed via `postMessage` from the host to the iframe, using a **configurable event name**.
 
-### 6.1 Environment configuration
+### 7.1 Environment configuration
 
 The backend reads the following environment variables (naming can be adjusted in implementation, but behavior must match):
 
@@ -385,7 +409,7 @@ The backend reads the following environment variables (naming can be adjusted in
 - Secondary model: URL, user, password (optional).
 - Leaflet tiles URL (for lib/config or injection when relevant).
 
-### 6.2 Model responsibilities
+### 7.2 Model responsibilities
 
 The prompt the agent receives must instruct it to:
 
@@ -396,7 +420,7 @@ The prompt the agent receives must instruct it to:
 
 The model **does not** need to implement the `postMessage` listener itself; that is added by the server.
 
-### 6.3 Backend postMessage listener injection
+### 7.3 Backend postMessage listener injection
 
 After library injection (section 5), the backend must inject at the **end of the `<body>`** a script that:
 
@@ -433,7 +457,7 @@ Rules:
 
 ---
 
-## 7. Error response shape (all API routes)
+## 8. Error response shape (all API routes)
 
 Use a consistent JSON body for 4xx/5xx:
 
@@ -455,7 +479,7 @@ interface ErrorBody {
 
 ---
 
-## 8. Data flow summary
+## 9. Data flow summary
 
 1. **Client** → `GET /api/flapi/packages/search?q=...` → **Server** → flapi `/package/v1/search/<partial>` → **Server** filters `Type === "Package"` → **Client** (autocomplete results).
 2. **Client** → `POST /api/flapi/packages/:packageId/run` with run params → **Server** → flapi → **Server** → **Client** (package run results).
@@ -471,7 +495,7 @@ interface ErrorBody {
 
 ---
 
-## 9. Out of scope for this spec
+## 10. Out of scope for this spec
 
 - **Authentication/authorization** — not mentioned in README; add later if required.
 - **Rate limiting** — recommended for `/api/generate` and `/api/feedback`; exact limits TBD.
@@ -480,7 +504,7 @@ interface ErrorBody {
 
 ---
 
-## 10. Checklist for mock and client
+## 11. Checklist for mock and client
 
 - [ ] Flapi mock: `GET /api/flapi/packages/search` and `POST /api/flapi/packages/:packageId/run` return stub data.
 - [ ] Libs mock: `GET /api/libs` returns stub array of lib descriptors.
@@ -492,7 +516,7 @@ interface ErrorBody {
 
 ---
 
-## 11. Implementation missions (backend-focused)
+## 12. Implementation missions (backend-focused)
 
 To keep work manageable and parallelizable, implement the backend in the following missions:
 
