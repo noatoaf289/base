@@ -20,6 +20,24 @@ Produce code and docs that use **only** the locally provided UMD/dist libraries 
 - **Mandatory data embedding:** When the user message includes a "## Data" section with a JSON array, your HTML output **must** (1) include a `<script>` tag that assigns that exact array to `window.data`, and (2) include a script that runs on load and **builds the visible DOM from `window.data`** (e.g. loop over `window.data`, create cards/rows, append to a container). Do **not** output only CSS or a static title—the page must show the actual data and, when present, images.
 - **When objects include an image URL field** (e.g. `image_url`, `url`, `photo_url`): render a **responsive** layout—e.g. CSS Grid or Flexbox with responsive columns (e.g. 1 col on narrow, 2–3 on medium, 4+ on wide), one card per entity with the image and associated fields. Use `<img src="..." alt="...">` with the provided URL. Ensure images are responsive (e.g. `max-width: 100%`, `object-fit: cover` inside a fixed-aspect container if needed).
 
+## Interactive Features (Search, Filters, Sort, Expand, Actions)
+- Whenever the user asks for **interaction on the data** (search, filters, sort, expand/collapse, show details, pagination, buttons, etc.), you MUST:
+  - Render clear, discoverable **controls** in the UI (inputs, selects, checkboxes, toggles, buttons) that match the user’s description.
+  - Add JavaScript that **listens to those controls** (e.g. `input`, `change`, `click` events) and **updates the DOM** accordingly (show/hide rows or cards, change order, reveal details, switch pages, etc.).
+  - Keep the data flow simple and robust: treat `window.data` as the single source of truth and derive any filtered/sorted/derived views from it.
+- For **search + filters combined**:
+  - Treat search, filters, and sort as **composable**: the final visible set should respect *all* active criteria (e.g. search text AND selected role AND sort by date).
+  - You are free to choose the exact UI pattern (table, cards, side filters, toolbar chips, etc.), but the behavior must fully implement the user’s intent.
+- **Search pattern (generic, adaptable):**
+  - If the prompt mentions "search" or "filter by text" on entities with fields like `name`, `title`, `email`, `phone`, you should:
+    - Add a search input with a meaningful placeholder (e.g. `"Search by name or phone..."`).
+    - Implement an `input` listener that normalizes the query (lowercase/trim) and shows/hides DOM elements (rows/cards) based on whether any of the relevant fields contain the query.
+    - Do not merely filter an array in memory without updating the DOM; the user must see the filtered result.
+- **Expandable details / drill-down:**
+  - When the user asks for "expand", "show more details", or similar, render a compact default view and attach an explicit affordance (button, chevron, "Expand" link) that toggles a details area (e.g. extra row, card footer, side panel).
+  - The details content should come from the same data (or a related structure) — do not invent random fields; use the schema provided in `window.data`.
+- These rules are **behavioral** and not tied to one concrete layout: you may design professional UIs (cards, tables, split layouts, dashboards) as long as you fully implement the requested interactions with clear, usable controls and working JavaScript.
+
 ## User Prompt Requirements
 - The user prompt must describe the object schema in `window.data` (field names, types, and meaning).
 - The user prompt must clearly state what to do with the data (transform, render, aggregate, validate, chart, etc.). 
@@ -104,6 +122,60 @@ function renderChart(ctx, data) {
 - Use logical spacing scale and avoid magic numbers.
 - Avoid `!important` unless absolutely necessary.
 - Keep layout resilient (flex/grid with sensible fallbacks).
+
+## Design System (Tokens & Layout)
+- **Color tokens (light theme):**
+  - Background: `#f5f5f5` (page), `#ffffff` (cards/panels), `#f0f2f5` (subtle sections).
+  - Surface border: `#e0e0e0`, `#e8eaed`.
+  - Text: `#111827` (primary), `#4b5563` (muted), `#9ca3af` (labels/hints).
+  - Accent / primary: `#2563eb` (buttons, active states, links).
+  - Danger: `#dc2626` (errors, destructive actions).
+- **Radius, shadows, spacing:**
+  - Border radius: `8px` for cards, `9999px` only for pills/avatars.
+  - Shadow: use `0 1px 3px rgba(15, 23, 42, 0.08)` for default elevation, stronger (`0 10px 30px rgba(15,23,42,0.18)`) only for modals/overlays.
+  - Spacing scale: multiples of `4px` – e.g. `8px`, `12px`, `16px`, `24px`, `32px`. Reuse consistently (padding/margins/gaps).
+- **Typography:**
+  - Font stack: `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`.
+  - Page title: `font-size: 1.75rem; font-weight: 700; letter-spacing: 0.02em`.
+  - Section title: `font-size: 1.125rem; font-weight: 600`.
+  - Body: `font-size: 0.95rem; line-height: 1.5`.
+
+## UI Component Primitives (Use These Patterns)
+You are free to compose layouts as you see fit, but for a professional and consistent look, **prefer these component patterns** instead of inventing new ones each time. Adapt text and content, but keep the structure and classes roughly similar.
+
+### Card
+- Wrapper:
+  - Tag: `<div class="card">`
+  - Styles (in `<style>`): 
+    - `background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;`
+    - `box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);`
+    - `padding: 16px;`
+### Card header / body
+- Header: `<div class="card-header">` – title, meta.
+- Body: `<div class="card-body">` – main content.
+- Use `display: flex; gap: 12px; align-items: center;` where relevant.
+
+### Toolbar / Filters Row
+- Use a flex container at the top of the page or section:
+  - `<div class="toolbar">` with `display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;`
+  - Left side: title / summary. Right side: search, filters, primary actions.
+- Inputs/buttons:
+  - Text input: `border-radius: 9999px; border: 1px solid #d1d5db; padding: 8px 14px; font-size: 0.9rem; min-width: 220px;`
+  - Select / dropdown: similar padding, `border-radius: 9999px;`
+  - Primary button: `background: #2563eb; color: white; border-radius: 9999px; padding: 8px 16px; font-weight: 500;`
+
+### Grid of Cards
+- Container:
+  - `<div class="card-grid">`
+  - Styles: `display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: stretch;`
+- Each item is a `card` as described above. This pattern should be used for people directories, product grids, metric tiles, etc.
+
+### Dashboard Layout
+- When composing dashboards:
+  - Top area: toolbar/title.
+  - Main area: CSS grid with 2–3 columns on desktop, single column on mobile: 
+    - `display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 20px;` or similar.
+  - Wrap each logical block (chart, table, info panel) in a `card` for consistency.
 
 ## Professional UI / Dashboard Design
 - **Color:** Use a restrained palette. Prefer neutral backgrounds (#f5f5f5, #1a1d21, #252830) and one accent (e.g. #0d6efd or #2563eb) for headers, links, and key actions. Avoid large flat bright blocks (e.g. big solid blue headers); use subtle accents instead.
